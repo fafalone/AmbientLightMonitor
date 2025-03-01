@@ -1,0 +1,215 @@
+[Description("Ambient Light Monitor")]
+[FormDesignerId("2FC0B077-30A2-4AC7-AF53-A881483EB89C")]
+[PredeclaredId]
+Class Form1
+    /*
+    Using Sensors in twinBASIC through ISensor
+    Ambient Light Monitor v1.0
+    by Jon Johnson (fafalone)
+
+    Main Form
+    
+    This is an example of how to get live raw data from the sensors found in
+    many laptops and tablets. This app demonstrates that by reading data from
+    the Ambient Light Sensor, but the technique is easily adapted to other
+    sensors like accelerometers, gyroscopes, magnetometers, etc.
+    
+    All the main action is wrapped in a class that's designed to be reusable;
+    you just need to instantiate it, call Initialize, call Uninitialize when
+    you're done, and it will raise an event each time the sensor data is
+    updated. That can be many times per second, so in this example the list/log
+    only takes samples at a certain interval.
+    
+    Ambient light is measured in lux, which isn't linear so we use the Log to
+    normalize it to a range for the progressbar. The maximum chosen came from 
+    this list on Wikipedia:
+    
+    Illuminance (lux)     Surfaces illuminated by
+    0.0001            Moonless, overcast night sky (starlight) 
+    0.002             Moonless clear night sky with airglow 
+    0.05–0.3          Full moon on a clear night 
+    3.4               Dark limit of civil twilight under a clear sky 
+    20–50             Public areas with dark surroundings 
+    50                Family living room lights  
+    80                Office building hallway/toilet lighting 
+    100               Very dark overcast day 
+    150               Train station platforms 
+    320–500           Office lighting 
+    400               Sunrise or sunset on a clear day.
+    1000              Overcast day; typical TV studio lighting
+    10,000–25,000     Full daylight (not direct sun) 
+    32,000–100,000    Direct sunlight
+    
+    
+    Requirements: Windows 7 or newer
+    
+    Based on the AmbientLightAware Windows SDK sample, but there are substantial
+    design changes because of ATL templates, differences between C++ and tB classes,
+    a desire to use regular tB Events, and other factors.
+    
+    I thought this might be useful as an actual utility, so cleaned up the UI and 
+    added a few features to polish it; so the project repository has binary builds.
+    
+    Changelog:
+    
+    01 Mar 2025 - v1.0 - Initial release
+    */
+    
+    
+    Private Const mLuxMax As Long = 100000 'For the progressbar
+    Private Const mScaleMax As Long = 50 'Should be integer nearest log(mLuxMax) * 10
+    
+    Private WithEvents mLightMonitor As cAmbientLight
+    
+    Private mCurLux As Single
+    
+    Private Sub OnLoad() Handles Form.Load
+        On Error Resume Next
+        ProgressBar1.Value = 0
+        Combo1.ListIndex = 0
+        Dim spSensors As ISensorCollection
+        Dim pManager As New SensorManager
+        pManager.GetSensorsByType(SENSOR_TYPE_AMBIENT_LIGHT, spSensors)
+        If spSensors IsNot Nothing Then
+            Label7.Caption = "Sensor detected."
+            Label7.ForeColor = &H096725
+            ProgressBar1.Max = mScaleMax
+        Else
+            Command1.Enabled = False
+            Command2.Enabled = False
+            Command3.Enabled = False
+            Command4.Enabled = False
+            Command5.Enabled = False
+            Option1(0).Enabled = False
+            Option1(1).Enabled = False
+            Check1.Enabled = False
+            Text1.Enabled = False
+            Combo1.Enabled = False
+        End If
+        Set spSensors = Nothing
+        Set pManager = Nothing
+    End Sub
+    
+    Private Sub OnUnload(Cancel As Integer) Handles Form.Unload
+        If mLightMonitor IsNot Nothing Then
+            Dim hr As Long = mLightMonitor.Uninitialize()
+            Debug.Print "UninitResult=0x" & Hex$(hr)
+            Set mLightMonitor = Nothing
+        End If
+    End Sub
+    
+    Private Sub OnStartMonitoring() Handles Command1.Click
+        Set mLightMonitor = New cAmbientLight
+        Dim hr As Long = mLightMonitor.Initialize()
+        Debug.Print "InitResult=0x" & Hex$(hr)
+        Command1.Enabled = False
+        Command2.Enabled = True
+        If Check1.Value = vbChecked Then
+            If Option1(0).Value = True Then
+                Timer1.Interval = CLng(Text1.Text) * 1000 'seconds
+            Else
+                Timer1.Interval = CLng(Text1.Text) * 1000 * 60 'minutes
+            End If
+            Timer1.Enabled = True
+        End If
+    End Sub
+    Private Sub OnStopMonitoring() Handles Command2.Click
+        Dim hr As Long = mLightMonitor.Uninitialize()
+        Debug.Print "UninitResult=0x" & Hex$(hr)
+        Set mLightMonitor = Nothing
+        Command1.Enabled = True
+        Command2.Enabled = False
+        Timer1.Enabled = False
+        Check1.Value = vbUnchecked
+    End Sub
+    
+    Private Sub OnAmbientLightChanged(ByVal fLux As Single) Handles mLightMonitor.AmbientLightChanged
+        On Error Resume Next
+        mCurLux = fLux
+        Label6.Caption = Round(mCurLux, 2) & " lux"
+        Dim fScale As Single = Log10(mCurLux) * 10 'Reminder since I forgot... VBx/tB Log(x) = Ln(x)
+        Dim nScale As Long = CLng(Round(fScale, 0))
+        If (nScale >= 0) Then
+            If (nScale > mScaleMax) Then nScale = mScaleMax
+            ProgressBar1.Value = nScale
+        End If
+    End Sub
+    Private Function Log10(ByVal x As Single) As Single
+        Return Log(x) / Log(10.0!)
+    End Function
+    
+    Private Sub OnToggleLog() Handles Check1.Click
+        If Check1.Value = vbChecked Then
+            If Option1(0).Value = True Then
+                Timer1.Interval = CLng(Text1.Text) * 1000 'seconds
+            Else
+                Timer1.Interval = CLng(Text1.Text) * 1000 * 60 'minutes
+            End If
+            Timer1.Enabled = True
+        Else
+            Timer1.Enabled = False
+        End If
+    End Sub
+    
+    Private Sub OnLogSample() Handles Timer1.Timer
+        If List1.ListCount = 32767 Then
+            List1.Clear
+            If Combo1.ListIndex = 0 Then
+                List1.AddItem "**OVERFLOW** All prior entries cleared."
+            Else
+                List1.AddItem "**OVERFLOW** All prior entries cleared.", 0
+            End If
+        End If
+        If Combo1.ListIndex = 0 Then
+            List1.AddItem "[" & Format$(Now, "yyyy-mm-dd Hh:nn:Ss") & "] " & Round(mCurLux, 2) & " lux"
+        Else
+            List1.AddItem "[" & Format$(Now, "yyyy-mm-dd Hh:nn:Ss") & "] " & Round(mCurLux, 2) & " lux", 0
+        End If
+    End Sub
+    
+    Private Sub OnCopyLog() Handles Command3.Click
+        Clipboard.SetText ListToString()
+    End Sub
+    
+    Private Function ListToString() As String
+        Dim i As Long
+        For i = 0 To List1.ListCount - 1
+            ListToString &= List1.List(i) & vbCrLf
+        Next
+    End Function
+    
+    Private Sub OnSaveLog() Handles Command4.Click
+        On Error GoTo e0
+        Dim fsd As New FileSaveDialog
+        Dim tTyp() As COMDLG_FILTERSPEC
+        ReDim tTyp(0)
+        tTyp(0).pszName = StrPtr("Text file")
+        tTyp(0).pszSpec = StrPtr("*.txt")
+        fsd.SetTitle("Save list as...")
+        fsd.SetFileTypes 1, VarPtr(tTyp(0))
+        fsd.SetOptions FOS_FORCEFILESYSTEM Or FOS_STRICTFILETYPES
+        On Error Resume Next
+        fsd.Show(Me.hWnd)
+        Dim siRes As IShellItem
+        fsd.GetResult(siRes)
+        On Error GoTo e0
+        If siRes IsNot Nothing Then
+            Dim szFile As String, lpszFile As LongPtr
+            siRes.GetDisplayName(SIGDN_FILESYSPATH, lpszFile)
+            szFile = LPWSTRtoStr(lpszFile)
+            Dim sData As String = ListToString()
+            Dim nFile As Long = FreeFile()
+            Open szFile For Output As #nFile
+            Print #nFile, sData ;
+            Close #nFile
+        End If
+    Exit Sub
+    e0: 
+    Debug.Print CurrentComponentName & "::" & CurrentProcedureName & " error=0x" & Hex$(Err.Number) & ", " & Err.Description
+ 
+    End Sub
+    
+    Private Sub OnClearLog() Handles Command5.Click
+        List1.Clear
+    End Sub
+End Class
