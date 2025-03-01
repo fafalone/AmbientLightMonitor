@@ -1,5 +1,6 @@
 # AmbientLightMonitor
 ## Ambient Light Sensor Monitor v1.0
+Using ISensorManager and ISensor in twinBASIC to retrieve data from device sensors
 
 ![image](https://github.com/user-attachments/assets/5e716aba-5308-4652-8373-8a73833b03cf)
 
@@ -36,3 +37,17 @@ I thought this might be useful as an actual utility, so cleaned up the UI and ad
 **Changelog:**
 
 01 Mar 2025 - v1.0 - Initial release
+
+## Made using twinBASIC
+
+![339231410-abba1d5d-0adb-4b32-a0cb-0f43ad13f1e6](https://github.com/user-attachments/assets/8a585214-547e-4a39-a3a7-75a71514c6a3)
+
+twinBASIC is a new language and IDE that's aiming for 100% backwards compatibility with Visual Basic 6.0 while adding a lengthy list of new language features and a modern IDE experience. It's currently under development but far enough along that it supports many large, complex apps. I'm a huge fan of the project and this app was made entirely using only tB.
+
+[twinBASIC FAQs](https://github.com/twinbasic/documentation/wiki/twinBASIC-Frequently-Asked-Questions-(FAQs))
+
+[twinBASIC Home Page](https://twinbasic.com)
+
+[twinBASIC GitHub](https://github.com/twinbasic/twinbasic)
+
+[twinBASIC Releases](https://github.com/twinbasic/twinbasic/releases)
