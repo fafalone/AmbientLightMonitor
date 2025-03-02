@@ -85,7 +85,7 @@ End Function
 
 Private Function AddSensor(ByVal pSensor As ISensor) As Long
     On Error GoTo e0
-    If pSensor IsNot Nothing Then
+    If pSensor IsNot Nothing Then 
         pSensor.SetEventSink(pEvents)
         ReDim Preserve SensorGroup(nSensors)
         pSensor.GetId SensorGroup(nSensors).id

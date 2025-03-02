@@ -42,6 +42,16 @@ Class Form1
     
     
     Requirements: Windows 7 or newer
+       This project like most of my others also shows the power of my WinDevLib
+       package: All the sensor interfaces and all the APIs are just there; you don't
+       need to worry about tracking down all the related definitions every time you
+       use the Windows API... you check the box in the Packages references, it's
+       automatically downloaded from the twinBASIC Package Server and added to your
+       project, then nearly all of the common SDK stuff is at your fingertips... it
+       has 2800+ interfaces and 350+ coclasses, 8000+ APIs, and all the types, constants,
+       enums, and GUIDs associated with them-- related constants painstakingly grouped
+       into enums to associate with their arguments or UDT members for use with 
+       Intellisense. 
     
     Based on the AmbientLightAware Windows SDK sample, but there are substantial
     design changes because of ATL templates, differences between C++ and tB classes,
@@ -51,10 +61,25 @@ Class Form1
     added a few features to polish it; so the project repository has binary builds.
     
     Changelog:
-    
+    02 Mar 2025 - v1.1 
+         -Added option to only log sample if above a given threshold
+         -Added About dialog command to system menu
+         -Arranged tab order logically.
+         -Updated manifest with support and trustinfo.
+         
     01 Mar 2025 - v1.0 - Initial release
     */
     
+    Private Const szHelpTitle = "Ambient Light Monitor"
+    Private Const szHelpHeader = "Ambient Light Sensor Monitor v1.1"
+    Private Const szHelpMessage = "This is a utility that provides a direct feed of raw sensor data from the ambient light sensors on tablets and some laptops. " & vbcrlf & _
+                                  "Based on the C/C++ AmbientLightAwareness sample from the Windows 7 SDK. " & vbcrlf & vbcrlf & _
+                                  "For the readme, filing bug reports, original source, and more of my projects made in twinBASIC, visit the project's GitHub repository:" & vbcrlf & _
+                                  "<a href=""https://github.com/fafalone/AmbientLightMonitor"">https://github.com/fafalone/AmbientLightMonitor</a>"
+    Private Const szHelpFooter = "Copyright ©2025 Jon Johnson. Licensed under the MIT License. See code or repository for more  information."
+    Private Const szHelpIconRes = "1"
+    Private Const IDI_ABOUT = 1
+    Private Const IDM_ABOUT = 12001
     
     Private Const mLuxMax As Long = 100000 'For the progressbar
     Private Const mScaleMax As Long = 50 'Should be integer nearest log(mLuxMax) * 10
@@ -63,17 +88,65 @@ Class Form1
     
     Private mCurLux As Single
     
+    Private Sub AddHelpToMenu()
+        Dim hMenu As LongPtr = GetSystemMenu(Me.hWnd, CFALSE)
+        AppendMenu hMenu, MF_SEPARATOR, IDM_ABOUT - 1, vbNullString
+        AppendMenu hMenu, MF_STRING, IDM_ABOUT, "About " & App.Title
+    End Sub
+        
+    Private Sub ShowHelp()
+        Dim tdc As TASKDIALOGCONFIG
+        tdc.cbSize = LenB(Of TASKDIALOGCONFIG)
+        tdc.hInstance = App.hInstance
+        tdc.hWndParent = Me.hWnd
+        tdc.dwCommonButtons = TDCBF_CLOSE_BUTTON
+        tdc.dwFlags = TDF_ENABLE_HYPERLINKS
+        tdc.pfCallback = AddressOf TaskDialogCallbackProc
+        tdc.pszMainIcon = MAKEINTRESOURCE(CLng(TD_SHIELD_GRAY_ICON))
+        tdc.pszFooterIcon = MAKEINTRESOURCE(CLng(TD_INFORMATION_ICON))
+        tdc.pszWindowTitle = StrPtr(szHelpTitle)
+        tdc.pszMainInstruction = StrPtr(szHelpHeader)
+        tdc.pszContent = StrPtr(szHelpMessage)
+        tdc.pszFooter = StrPtr(szHelpFooter)
+        
+        Dim lRes As Long = TaskDialogIndirect(tdc)
+        
+    End Sub
+    
     Private Sub OnLoad() Handles Form.Load
         On Error Resume Next
         ProgressBar1.Value = 0
         Combo1.ListIndex = 0
+        AddHelpToMenu()
+        Subclass2 Me.hWnd, AddressOf WndProc, Me.hWnd
         Dim spSensors As ISensorCollection
         Dim pManager As New SensorManager
         pManager.GetSensorsByType(SENSOR_TYPE_AMBIENT_LIGHT, spSensors)
         If spSensors IsNot Nothing Then
-            Label7.Caption = "Sensor detected."
             Label7.ForeColor = &H096725
             ProgressBar1.Max = mScaleMax
+            Dim pSen As ISensor
+            Dim pName As String
+            Dim nSens As Long
+            spSensors.GetCount(nSens)
+            If nSens = 1 Then
+                Label7.Caption = "Sensor detected: "
+            Else
+                Label7.Caption = "Sensors detected: "
+            End If
+            Dim i As Long
+            For i = 0 To Count - 1
+                spSensors.GetAt i, pSen
+                If pSen IsNot Nothing Then
+                    pName = vbNullString
+                    pSen.GetFriendlyName(pName)
+                    If i > 0 Then
+                        Label7.Caption &= ", " & pName
+                    Else
+                        Label7.Caption &= pName
+                    End If
+                End If
+            Next
         Else
             Command1.Enabled = False
             Command2.Enabled = False
@@ -152,6 +225,9 @@ Class Form1
     End Sub
     
     Private Sub OnLogSample() Handles Timer1.Timer
+        If Check2.Value = vbChecked Then
+            If mCurLux < CDbl(Text2.Text) Then Exit Sub
+        End If
         If List1.ListCount = 32767 Then
             List1.Clear
             If Combo1.ListIndex = 0 Then
@@ -212,4 +288,40 @@ Class Form1
     Private Sub OnClearLog() Handles Command5.Click
         List1.Clear
     End Sub
+    
+    Private Function Subclass2(hWnd As LongPtr, lpFN As LongPtr, Optional uId As LongPtr = 0&, Optional dwRefData As LongPtr = 0&) As Boolean
+    If uId = 0 Then uId = hWnd
+        Subclass2 = SetWindowSubclass(hWnd, lpFN, uId, dwRefData):      Debug.Assert Subclass2
+    End Function
+
+    Private Function UnSubclass2(hWnd As LongPtr, ByVal lpFN As LongPtr, pid As LongPtr) As Boolean
+        UnSubclass2 = RemoveWindowSubclass(hWnd, lpFN, pid)
+    End Function
+    
+    Private Function TaskDialogCallbackProc(ByVal hwnd As LongPtr, ByVal uNotification As Long, ByVal wParam As LongPtr, ByVal lParam As LongPtr, ByVal lpRefData As LongPtr) As LongPtr
+        Select Case uNotification
+            'Replace the shield icon with our app icon
+            Case TDN_DIALOG_CONSTRUCTED
+                SendMessageW hwnd, TDM_UPDATE_ICON, TDIE_ICON_MAIN, ByVal IDI_ABOUT
+            
+            'lParam is a pointer to the URL, so just forward it to execute with default browser.
+            Case TDN_HYPERLINK_CLICKED
+                Call ShellExecuteW(0, 0, lParam, 0, 0, SW_SHOWNORMAL)
+        End Select
+    End Function
+    
+    Private Function WndProc(ByVal hWnd As LongPtr, ByVal uMsg As Long, ByVal wParam As LongPtr, ByVal lParam As LongPtr, ByVal uIdSubclass As LongPtr, ByVal dwRefData As LongPtr) As LongPtr
+        
+        Select Case uMsg
+            Case WM_SYSCOMMAND
+                If wParam = IDM_ABOUT Then
+                    ShowHelp()
+                    Return 0
+                End If
+            Case WM_DESTROY
+                Call UnSubclass2(hWnd, AddressOf WndProc, uIdSubclass)
+        End Select
+        WndProc = DefSubclassProc(hWnd, uMsg, wParam, lParam)
+    End Function
+    
 End Class
