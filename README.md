@@ -1,8 +1,9 @@
 # AmbientLightMonitor
-## Ambient Light Sensor Monitor v1.0
+## Ambient Light Sensor Monitor v1.1
 Using ISensorManager and ISensor in twinBASIC to retrieve data from device sensors
 
-![image](https://github.com/user-attachments/assets/5e716aba-5308-4652-8373-8a73833b03cf)
+![image](https://github.com/user-attachments/assets/e4f545f3-bfb7-409d-9580-e92a9e0e5f0b)
+
 
 This is an example of how to get live raw data from the sensors found in many laptops and tablets. This app demonstrates that by reading data from the Ambient Light Sensor, but the technique is easily adapted to other sensors like accelerometers, gyroscopes, magnetometers, etc.
 
@@ -34,8 +35,13 @@ Based on the AmbientLightAware Windows SDK sample, but there are substantial des
 
 I thought this might be useful as an actual utility, so cleaned up the UI and added a few features to polish it; so the project repository has binary builds.
 
-**Changelog:**
-
+**Changelog:**\
+02 Mar 2025 - v1.1\
+  -Added option to only log sample if above a given threshold\
+  -Added About dialog command to system menu\
+   -Arranged tab order logically.\
+   -Updated manifest with support and trustinfo.
+         
 01 Mar 2025 - v1.0 - Initial release
 
 ## Made using twinBASIC
