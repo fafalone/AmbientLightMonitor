@@ -35,6 +35,9 @@ Based on the AmbientLightAware Windows SDK sample, but there are substantial des
 
 I thought this might be useful as an actual utility, so cleaned up the UI and added a few features to polish it; so the project repository has binary builds.
 
+![image](https://github.com/user-attachments/assets/3641b330-7483-41ae-ba52-b852dc262386) ![image](https://github.com/user-attachments/assets/afc968cf-3302-4167-89cb-23a5f5d893b5)
+
+
 **Changelog:**\
 02 Mar 2025 - v1.1\
   -Added option to only log sample if above a given threshold\
